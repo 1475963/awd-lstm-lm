@@ -70,6 +70,8 @@ def evaluate(data_source, batch_size=10, window=args.window):
         data, targets = get_batch(data_source, i, evaluation=True, args=args)
         output, hidden, rnn_outs, _ = model(data, hidden, return_h=True)
         rnn_out = rnn_outs[-1].squeeze()
+        print('output:', output)
+        print('output.shape:', output.shape)
         output_flat = output.view(-1, ntokens)
         ###
         # Fill pointer history
@@ -117,7 +119,7 @@ with open(args.save, 'rb') as f:
     if not args.cuda:
         model = torch.load(f, map_location=lambda storage, loc: storage)
     else:
-        model = torch.load(f)
+        model = torch.load(f)[0]
 print(model)
 
 # Run on val data.

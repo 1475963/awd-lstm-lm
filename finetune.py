@@ -96,6 +96,12 @@ print('Args:', args)
 print('Model total parameters:', total_params)
 
 criterion = nn.CrossEntropyLoss()
+optimizer = torch.optim.ASGD(model.parameters(), lr=args.lr, t0=0, lambd=0., weight_decay=args.wdecay)
+
+# Load the best saved model.
+with open(args.save, 'rb') as f:
+    model, criterion, _ = torch.load(f)
+
 
 ###############################################################################
 # Training code
@@ -111,8 +117,7 @@ def evaluate(data_source, batch_size=10):
     for i in range(0, data_source.size(0) - 1, args.bptt):
         data, targets = get_batch(data_source, i, args, evaluation=True)
         output, hidden = model(data, hidden)
-        output_flat = output.view(-1, ntokens)
-        total_loss += len(data) * criterion(output_flat, targets).data
+        total_loss += len(data) * criterion(model.decoder.weight, model.decoder.bias, output, targets).data
         hidden = repackage_hidden(hidden)
     return total_loss[0] / len(data_source)
 
@@ -143,7 +148,7 @@ def train():
         optimizer.zero_grad()
 
         output, hidden, rnn_hs, dropped_rnn_hs = model(data, hidden, return_h=True)
-        raw_loss = criterion(output.view(-1, ntokens), targets)
+        raw_loss = criterion(model.decoder.weight, model.decoder.bias, output, targets)
 
         loss = raw_loss
         # Activiation Regularization
@@ -172,9 +177,6 @@ def train():
         i += seq_len
 
 
-# Load the best saved model.
-with open(args.save, 'rb') as f:
-    model = torch.load(f)
 
 
 # Loop over epochs.
@@ -182,9 +184,9 @@ lr = args.lr
 stored_loss = evaluate(val_data)
 best_val_loss = []
 # At any point you can hit Ctrl + C to break out of training early.
+
 try:
     #optimizer = torch.optim.ASGD(model.parameters(), lr=args.lr, weight_decay=args.wdecay)
-    optimizer = torch.optim.ASGD(model.parameters(), lr=args.lr, t0=0, lambd=0., weight_decay=args.wdecay)
     for epoch in range(1, args.epochs+1):
         epoch_start_time = time.time()
         train()
@@ -192,7 +194,7 @@ try:
             tmp = {}
             for prm in model.parameters():
                 tmp[prm] = prm.data.clone()
-                prm.data = optimizer.state[prm]['ax'].clone()
+                prm.data = optimizer.state[prm].clone()
 
             val_loss2 = evaluate(val_data)
             print('-' * 89)
