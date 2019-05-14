@@ -6,7 +6,6 @@ import torch
 import torch.nn as nn
 
 import data
-import model
 
 from utils import batchify, get_batch, repackage_hidden
 
@@ -113,8 +112,11 @@ test_data = batchify(corpus.test, test_batch_size, args)
 from splitcross import SplitCrossEntropyLoss
 criterion = None
 
+import awd_lstm
+
 ntokens = len(corpus.dictionary)
-model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.dropouth, args.dropouti, args.dropoute, args.wdrop, args.tied)
+model = awd_lstm.RNNModel(ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.dropouth, args.dropouti, args.dropoute, args.wdrop, args.tied)
+
 ###
 if args.resume:
     print('Resuming model ...')
@@ -122,9 +124,8 @@ if args.resume:
     optimizer.param_groups[0]['lr'] = args.lr
     model.dropouti, model.dropouth, model.dropout, args.dropoute = args.dropouti, args.dropouth, args.dropout, args.dropoute
     if args.wdrop:
-        from weight_drop import WeightDrop
         for rnn in model.rnns:
-            if type(rnn) == WeightDrop: rnn.dropout = args.wdrop
+            if type(rnn) == awd_lstm.WeightDrop: rnn.dropout = args.wdrop
             elif rnn.zoneout > 0: rnn.zoneout = args.wdrop
 ###
 if not criterion:
